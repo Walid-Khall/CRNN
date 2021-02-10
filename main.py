@@ -1,7 +1,7 @@
 import torch
 from torch.autograd import Variable
 import utils
-# import dataset
+import dataset
 from PIL import Image
 import glob
 import os
@@ -45,7 +45,7 @@ def load_images_to_predict():
     if torch.cuda.is_available():
         model = model.cuda()
     print('loading pretrained model from %s' % model_path)
-    model.load_state_dict({k.replace('module.',''):v for k,v in torch.load(model_path).items()})
+    model.load_state_dict({k.replace('module.',''):v for k,v in torch.load(model_path, map_location=torch.device('cpu')).items()})
 
     # load image
     filenames = [os.path.splitext(f)[0] for f in glob.glob("data_test/*.jpg")]
@@ -53,13 +53,14 @@ def load_images_to_predict():
     for jpg in jpg_files:
         image = Image.open(jpg).convert('L')
         words_list = []
-        with open('boundingbox/'+jpg.split('/')[1].split('.')[0]+'.txt', 'r') as boxes:
+        # print(jpg)
+        with open('boundingbox/'+jpg.split('\\')[1].split('.')[0]+'.txt', 'r') as boxes:
             for line in csv.reader(boxes):
                 box = [int(string, 10) for string in line[0:8]]
                 boxImg = image.crop((box[0], box[1], box[4], box[5]))
                 words = predict_this_box(boxImg, model, alphabet)
                 words_list.append(words)
-        with open('test_result/'+jpg.split('/')[1].split('.')[0]+'.txt', 'w+') as resultfile:
+        with open('test_result/'+jpg.split('\\')[1].split('.')[0]+'.txt', 'w+') as resultfile:
             for line in words_list:
                 resultfile.writelines(line+'\n')
 
@@ -80,7 +81,7 @@ def process_txt():
                 if ' ' in line[0]:
                     line = line[0].split(' ')
                 new.append(line)
-        with open('task2_result/' + old_file.split('/')[1], "w+") as newfile:
+        with open('task2_result/' + old_file.split('\\')[1], "w+") as newfile:
             wr = csv.writer(newfile, delimiter = '\n')
             new = [[s[0].upper()] for s in new]
             wr.writerows(new)
@@ -95,7 +96,7 @@ def for_task3():
             for line in csv.reader(boxes):
                 box.append([int(string, 10) for string in line[0:8]])
         words = []
-        with open('test_result/'+ boxfile.split('/')[1], 'r') as prediction:
+        with open('test_result/'+ boxfile.split('\\')[1], 'r') as prediction:
             for line in csv.reader(prediction):
                 words.append(line)
         words = [s if len(s)!=0 else [' '] for s in words]
@@ -103,7 +104,7 @@ def for_task3():
         for line in zip(box,words):
             a,b = line
             new.append(a+b)
-        with open('for_task3/'+ boxfile.split('/')[1], 'w+') as newfile:
+        with open('for_task3/'+ boxfile.split('\\')[1], 'w+') as newfile:
             csv_out = csv.writer(newfile)
             for line in new:
                 csv_out.writerow(line)
@@ -113,20 +114,21 @@ def draw():
     filenames = [os.path.splitext(f)[0] for f in glob.glob("for_task3/*.txt")]
     txt_files = [s + ".txt" for s in filenames]
     for txt in txt_files:
-        image = cv2.imread('test_original/'+ txt.split('/')[1].split('.')[0]+'.jpg', cv2.IMREAD_COLOR)
+        image = cv2.imread('test_original/'+ txt.split('\\')[1].split('.')[0]+'.jpg', cv2.IMREAD_COLOR)
         with open(txt, 'r') as txt_file:
             for line in csv.reader(txt_file):
                 box = [int(string, 10) for string in line[0:8]]
                 if len(line) < 9:
                     print(txt)
+
                 cv2.rectangle(image, (box[0], box[1]), (box[4], box[5]), (0,255,0), 2)
                 font = cv2.FONT_HERSHEY_SIMPLEX
                 cv2.putText(image, line[8].upper(), (box[0],box[1]), font, 0.5, (0, 0, 255), 1, cv2.LINE_AA)
-        cv2.imwrite('task2_result_draw/'+ txt.split('/')[1].split('.')[0]+'.jpg', image)
+        cv2.imwrite('task2_result_draw/'+ txt.split('\\')[1].split('.')[0]+'.jpg', image)
 
 
 if __name__ == "__main__":
     load_images_to_predict()
-    #process_txt()
-    # for_task3()
-    draw()
+    process_txt()
+    for_task3()
+    # draw()
